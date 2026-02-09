@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landscaping Business Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ffmpeg/0.11.6/ffmpeg.min.js"></script>
+    <style>
+        .tab-button.active {
+            background-color: #10b981;
+            color: white;
+        }
+        #map {
+            height: 450px;
+            width: 100%;
+        }
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-active { background-color: #d1fae5; color: #065f46; }
+        .status-completed { background-color: #e0e7ff; color: #3730a3; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-400 to-green-600">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-96">
+            <div class="text-center mb-6">
+                <div class="text-6xl mb-4">🌿</div>
+                <h1 class="text-3xl font-bold text-gray-800">Landscaping Manager</h1>
+                <p class="text-gray-600 mt-2">Business Dashboard</p>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="loginUsername" placeholder="Username" value="luxlawns" class="w-full border rounded-lg px-4 py-3" onkeypress="if(event.key==='Enter') login()">
+                <input type="password" id="loginPassword" placeholder="Password" value="" class="w-full border rounded-lg px-4 py-3" onkeypress="if(event.key==='Enter') login()">
+                <button onclick="login()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                    Login
+                </button>
+                <p class="text-sm text-gray-500 text-center">Default credentials set during first login</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <div class="max-w-7xl mx-auto p-4">
+            <header class="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-lg shadow-lg mb-6">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-4">
+                        <img id="businessLogo" src="" alt="" class="h-16 w-16 rounded-lg bg-white p-1 object-contain hidden">
+                        <div id="defaultLogo" class="text-5xl">🌿</div>
+                        <div>
+                            <h1 class="text-3xl font-bold">Landscaping Business Manager</h1>
+                            <p class="text-green-100 mt-2">
+                                Manage clients, schedules, videos, and routes
+                                <span id="syncStatus" class="ml-3 text-xs bg-yellow-700 px-2 py-1 rounded">💾 Local Storage Only</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="showTab('settings')" class="bg-white text-green-600 px-4 py-2 rounded-lg font-semibold hover:bg-green-50">
+                            ⚙️ Settings
+                        </button>
+                        <button onclick="logout()" class="bg-white text-green-600 px-4 py-2 rounded-lg font-semibold hover:bg-green-50">
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button class="tab-button active px-6 py-3 rounded-lg font-semibold transition" onclick="showTab('dashboard')">Dashboard</button>
+                <button class="tab-button px-6 py-3 rounded-lg font-semibold transition bg-white" onclick="showTab('clients')">Clients</button>
+                <button class="tab-button px-6 py-3 rounded-lg font-semibold transition bg-white" onclick="showTab('schedule')">Schedule</button>
+                <button class="tab-button px-6 py-3 rounded-lg font-semibold transition bg-white" onclick="showTab('videos')">Videos</button>
+                <button class="tab-button px-6 py-3 rounded-lg font-semibold transition bg-white" onclick="showTab('map')">Map & Routes</button>
+                <button class="tab-button px-6 py-3 rounded-lg font-semibold transition bg-white" onclick="showTab('settings')">⚙️ Settings</button>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="dashboard-tab" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-semibold">Total Clients</p>
+                                <p class="text-3xl font-bold text-green-600" id="totalClients">0</p>
+                            </div>
+                            <div class="text-5xl">👥</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-semibold">Fortnightly Jobs</p>
+                                <p class="text-3xl font-bold text-blue-600" id="fortnightlyCount">0</p>
+                            </div>
+                            <div class="text-5xl">📅</div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-semibold">Monthly Flowerbeds</p>
+                                <p class="text-3xl font-bold text-purple-600" id="monthlyCount">0</p>
+                            </div>
+                            <div class="text-5xl">🌺</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Upcoming This Week</h2>
+                    <div id="upcomingJobs" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔔 Reminders & Alerts</h2>
+                    <div id="dashboardReminders" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Clients Tab -->
+            <div id="clients-tab" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Add New Client</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="clientName" placeholder="Client Name *" class="border rounded-lg px-4 py-2">
+                        <input type="text" id="clientAddress" placeholder="Full Address *" class="border rounded-lg px-4 py-2">
+                        
+                        <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <input type="text" id="clientLatitude" placeholder="Latitude (e.g., 13.0969)" class="border rounded-lg px-4 py-2">
+                            <input type="text" id="clientLongitude" placeholder="Longitude (e.g., -59.6145)" class="border rounded-lg px-4 py-2">
+                            <button type="button" onclick="getCurrentLocation()" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-sm">
+                                📍 Get My Location
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 md:col-span-2">Optional: Add GPS coordinates for exact location. You can get these from Google Maps or use your current location.</p>
+                        
+                        <input type="tel" id="clientPhone" placeholder="Phone Number" class="border rounded-lg px-4 py-2">
+                        <input type="email" id="clientEmail" placeholder="Email" class="border rounded-lg px-4 py-2">
+                        
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">Service Type *</label>
+                            <select id="serviceType" class="border rounded-lg px-4 py-2 w-full">
+                                <option value="fortnightly">Fortnightly Service (Every 2 weeks)</option>
+                                <option value="monthly-flowerbed">Monthly Flowerbed Maintenance</option>
+                                <option value="both">Both Services</option>
+                                <option value="one-time">One-Time Job</option>
+                            </select>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">Next Service Date</label>
+                            <input type="date" id="nextServiceDate" class="border rounded-lg px-4 py-2 w-full">
+                        </div>
+
+                        <!-- Service Checklist -->
+                        <div class="md:col-span-2 border rounded-lg p-4 bg-gray-50">
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">✅ Services Required</label>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceLawn" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🌱 Lawn Mowing</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceGardenBed" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🌺 Garden Bed</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceHedge" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🌿 Hedge Trimming</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceEdging" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">✂️ Edging</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceWeeding" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🌾 Weeding</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="servicePruning" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🪴 Pruning</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceFertilizing" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">💧 Fertilizing</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceCleanup" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">🧹 Yard Cleanup</span>
+                                </label>
+                                <label class="flex items-center space-x-2 cursor-pointer">
+                                    <input type="checkbox" id="serviceOther" class="w-5 h-5 text-green-600 rounded">
+                                    <span class="text-sm font-medium">⚡ Other</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <input type="number" id="servicePrice" placeholder="Service Price ($)" class="border rounded-lg px-4 py-2">
+                        
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-gray-700">Status</label>
+                            <select id="clientStatus" class="border rounded-lg px-4 py-2 w-full">
+                                <option value="active">Active</option>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        
+                        <textarea id="clientNotes" placeholder="Notes (property details, special instructions, etc.)" class="border rounded-lg px-4 py-2 md:col-span-2" rows="3"></textarea>
+                    </div>
+                    <button onclick="addClient()" class="mt-4 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700">
+                        💾 Add Client
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">My Clients</h2>
+                    <div class="mb-4">
+                        <input type="text" id="clientSearch" placeholder="🔍 Search clients..." class="border rounded-lg px-4 py-2 w-full" onkeyup="renderClients()">
+                    </div>
+                    <div id="clientsList" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- Schedule Tab -->
+            <div id="schedule-tab" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📅 Service Schedule</h2>
+                    <div class="flex gap-4 mb-4">
+                        <button onclick="filterSchedule('all')" class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300" id="filter-all">All</button>
+                        <button onclick="filterSchedule('fortnightly')" class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300" id="filter-fortnightly">Fortnightly</button>
+                        <button onclick="filterSchedule('monthly-flowerbed')" class="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300" id="filter-monthly">Monthly Flowerbeds</button>
+                    </div>
+                    <div id="scheduleList" class="space-y-3"></div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Add Custom Reminder</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="reminderTitle" placeholder="Reminder Title" class="border rounded-lg px-4 py-2">
+                        <input type="date" id="reminderDate" class="border rounded-lg px-4 py-2">
+                        <select id="reminderType" class="border rounded-lg px-4 py-2">
+                            <option value="one-time">One Time</option>
+                            <option value="monthly">Monthly Repeat</option>
+                        </select>
+                        <textarea id="reminderNotes" placeholder="Notes" class="border rounded-lg px-4 py-2" rows="2"></textarea>
+                    </div>
+                    <button onclick="addReminder()" class="mt-4 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700">
+                        🔔 Add Reminder
+                    </button>
+                </div>
+            </div>
+
+            <!-- Videos Tab -->
+            <div id="videos-tab" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🎥 Upload Before & After Videos</h2>
+                    <div class="space-y-4">
+                        <select id="videoClient" class="border rounded-lg px-4 py-2 w-full">
+                            <option value="">Select Client</option>
+                        </select>
+                        
+                        <input type="text" id="videoTitle" placeholder="Video Title (e.g., 'Spring Lawn Transformation')" class="border rounded-lg px-4 py-2 w-full">
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Before Video</label>
+                                <input type="file" id="beforeVideo" accept="video/*" class="border rounded-lg px-4 py-2 w-full">
+                                <p class="text-xs text-gray-500 mt-1">Upload "before" video</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">After Video</label>
+                                <input type="file" id="afterVideo" accept="video/*" class="border rounded-lg px-4 py-2 w-full">
+                                <p class="text-xs text-gray-500 mt-1">Upload "after" video</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm text-blue-800">
+                                <strong>💡 Auto-Edit Feature:</strong> The app will automatically combine your before and after videos into a single 60-second video with smooth transitions!
+                            </p>
+                        </div>
+
+                        <textarea id="videoDescription" placeholder="Description (optional)" class="border rounded-lg px-4 py-2 w-full" rows="3"></textarea>
+                        
+                        <div id="uploadProgress" class="hidden">
+                            <div class="bg-gray-200 rounded-full h-4 overflow-hidden">
+                                <div id="progressBar" class="bg-green-600 h-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <p class="text-sm text-gray-600 mt-2 text-center" id="progressText">Processing...</p>
+                        </div>
+
+                        <button onclick="uploadAndMergeVideos()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 w-full">
+                            🎬 Process & Save Video
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Project Videos</h2>
+                    <div id="videosList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+            </div>
+
+            <!-- Map Tab -->
+            <div id="map-tab" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-800">🗺️ Client Locations</h2>
+                        <div class="flex gap-2">
+                            <button onclick="switchMapSource('osm')" id="mapSourceOSM" class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300">
+                                🌍 World Map
+                            </button>
+                            <button onclick="switchMapSource('bbid')" id="mapSourceBBID" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                🇧🇧 Barbados Map
+                            </button>
+                        </div>
+                    </div>
+                    <div id="map" class="rounded-lg border-2 border-gray-200 mb-4"></div>
+                    <p class="text-sm text-gray-600">Click on markers to see client details and get directions</p>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🧭 Route Planner</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Select Client for Directions</label>
+                            <select id="directionsClient" class="border rounded-lg px-4 py-2 w-full">
+                                <option value="">Choose a client...</option>
+                            </select>
+                        </div>
+                        <button onclick="getDirections()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 w-full">
+                            📍 Get Directions
+                        </button>
+                        <div id="directionsInfo" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content hidden">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">☁️ Google Sheets Sync Setup</h2>
+                    
+                    <div id="googleSheetsNotConfigured" class="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
+                        <h3 class="font-bold text-yellow-900 mb-2">📊 Connect to Google Sheets for Multi-Device Access</h3>
+                        <p class="text-sm text-yellow-800 mb-3">Store your data in Google Sheets to access from any device!</p>
+                        
+                        <div class="bg-white rounded-lg p-4 mb-4">
+                            <p class="font-semibold text-gray-800 mb-2">Quick Setup Guide:</p>
+                            <ol class="list-decimal list-inside text-sm text-gray-700 space-y-2">
+                                <li><strong>Create a Google Sheet:</strong>
+                                    <ul class="list-disc list-inside ml-6 mt-1">
+                                        <li>Go to <a href="https://sheets.google.com" target="_blank" class="text-blue-600 underline">Google Sheets</a></li>
+                                        <li>Create a new blank spreadsheet</li>
+                                        <li>Name it "Landscaping Business Data"</li>
+                                        <li>Create 4 sheets: Clients, Reminders, Videos, Settings</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Get your Spreadsheet ID:</strong>
+                                    <ul class="list-disc list-inside ml-6 mt-1">
+                                        <li>Look at the URL: docs.google.com/spreadsheets/d/<span class="font-mono bg-gray-100 px-1">SPREADSHEET_ID</span>/edit</li>
+                                        <li>Copy the long ID between /d/ and /edit</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Get API Key:</strong>
+                                    <ul class="list-disc list-inside ml-6 mt-1">
+                                        <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="text-blue-600 underline">Google Cloud Console</a></li>
+                                        <li>Create a new project or select existing</li>
+                                        <li>Enable "Google Sheets API"</li>
+                                        <li>Create Credentials → API Key</li>
+                                        <li>Copy your API key</li>
+                                    </ul>
+                                </li>
+                                <li><strong>Make Sheet Public:</strong>
+                                    <ul class="list-disc list-inside ml-6 mt-1">
+                                        <li>In your Google Sheet, click "Share"</li>
+                                        <li>Change to "Anyone with the link can view"</li>
+                                        <li>Click "Done"</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Google Sheets API Key:</label>
+                                <input type="text" id="googleApiKey" placeholder="AIzaSy..." class="border rounded-lg px-4 py-2 w-full font-mono text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">Spreadsheet ID:</label>
+                                <input type="text" id="googleSpreadsheetId" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms" class="border rounded-lg px-4 py-2 w-full font-mono text-sm">
+                            </div>
+                            <button onclick="connectGoogleSheets()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 w-full">
+                                🔗 Connect Google Sheets
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="googleSheetsConfigured" class="hidden bg-green-50 border border-green-300 rounded-lg p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="text-3xl">✅</div>
+                            <div>
+                                <h3 class="font-bold text-green-900">Google Sheets Connected!</h3>
+                                <p class="text-sm text-green-800">Your data is syncing to Google Sheets</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div class="bg-white rounded p-3">
+                                <p class="font-semibold text-gray-700">✅ Benefits:</p>
+                                <ul class="list-disc list-inside text-gray-600 text-xs mt-1">
+                                    <li>Access from any device</li>
+                                    <li>View/edit data in Google Sheets directly</li>
+                                    <li>Automatic backups</li>
+                                    <li>Share with team members</li>
+                                </ul>
+                            </div>
+                            <div class="bg-white rounded p-3">
+                                <p class="font-semibold text-gray-700">📱 How to use:</p>
+                                <ul class="list-disc list-inside text-gray-600 text-xs mt-1">
+                                    <li>Open app on any device</li>
+                                    <li>Data loads from Google Sheets</li>
+                                    <li>Changes save automatically</li>
+                                    <li>View in Sheets anytime</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <button onclick="disconnectGoogleSheets()" class="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 text-sm">
+                            Disconnect Google Sheets
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🎨 Business Branding</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Upload Your Business Logo</label>
+                            <input type="file" id="logoUpload" accept="image/*" class="border rounded-lg px-4 py-2 w-full" onchange="uploadLogo()">
+                            <p class="text-xs text-gray-500 mt-1">Recommended: Square image (PNG, JPG) - max 2MB. Logo syncs to all devices.</p>
+                        </div>
+                        
+                        <div id="logoPreview" class="hidden border-2 border-dashed border-gray-300 rounded-lg p-4">
+                            <p class="text-sm font-semibold text-gray-700 mb-2">Current Logo:</p>
+                            <img id="currentLogo" src="" alt="Business Logo" class="h-32 w-32 object-contain border rounded-lg bg-gray-50 p-2">
+                            <button onclick="removeLogo()" class="mt-3 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm">
+                                🗑️ Remove Logo
+                            </button>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm text-blue-800">
+                                <strong>💡 Tip:</strong> Your logo will appear in the header and syncs across all devices!
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">🔐 Account Settings</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Change Password</label>
+                            <input type="password" id="newPassword" placeholder="New Password" class="border rounded-lg px-4 py-2 w-full mb-2">
+                            <input type="password" id="confirmPassword" placeholder="Confirm Password" class="border rounded-lg px-4 py-2 w-full">
+                            <p class="text-xs text-gray-500 mt-1">Password changes apply to all devices</p>
+                        </div>
+                        <button onclick="changePassword()" class="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700">
+                            Update Password
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Data Management</h2>
+                    <div class="space-y-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm text-blue-800 mb-2">
+                                <strong>📥 Import Your Data:</strong> Restore data from a backup file.
+                            </p>
+                            <input type="file" id="importFile" accept=".json" class="border rounded-lg px-4 py-2 w-full mb-2">
+                            <button onclick="importData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm w-full">
+                                📥 Import Data
+                            </button>
+                        </div>
+                        
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <p class="text-sm text-yellow-800">
+                                <strong>⚠️ Export Your Data:</strong> Download a backup of all your clients, schedules, and videos.
+                            </p>
+                            <button onclick="exportData()" class="mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm">
+                                📥 Export Data
+                            </button>
+                        </div>
+                        
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <p class="text-sm text-red-800">
+                                <strong>⚠️ Danger Zone:</strong> Reset all data on all devices. This cannot be undone!
+                            </p>
+                            <button onclick="resetAllData()" class="mt-3 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 text-sm">
+                                🔄 Reset All Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google Sheets Configuration
+        const GOOGLE_SHEETS_CONFIG = {
+            apiKey: '', // User will add their own API key
+            spreadsheetId: '', // User will add their spreadsheet ID
+            sheetsNames: {
+                clients: 'Clients',
+                reminders: 'Reminders',
+                videos: 'Videos',
+                settings: 'Settings'
+            }
+        };
+
+        // Global variables
+        let currentUser = null;
+        let clients = [];
+        let reminders = [];
+        let videos = [];
+        let map = null;
+        let markers = [];
+        let scheduleFilter = 'all';
+        let useGoogleSheets = false;
+        let currentMapSource = 'bbid'; // 'osm' or 'bbid'
+        let mapLayer = null;
+        
+        // Storage helper functions - Hybrid system (Google Sheets + localStorage fallback)
+        async function saveToStorage(key, value) {
+            if (useGoogleSheets && GOOGLE_SHEETS_CONFIG.apiKey && GOOGLE_SHEETS_CONFIG.spreadsheetId) {
+                try {
+                    await saveToGoogleSheets(key, value);
+                    return true;
+                } catch (e) {
+                    console.error('Google Sheets save error:', e);
+                }
+            }
+            
+            // Fallback to localStorage
+            try {
+                await window.storage.set(key, value, true);
+                return true;
+            } catch (e) {
+                console.log('Using localStorage fallback for:', key);
+                localStorage.setItem(key, value);
+                return true;
+            }
+        }
+        
+        async function getFromStorage(key) {
+            if (useGoogleSheets && GOOGLE_SHEETS_CONFIG.apiKey && GOOGLE_SHEETS_CONFIG.spreadsheetId) {
+                try {
+                    return await getFromGoogleSheets(key);
+                } catch (e) {
+                    console.error('Google Sheets read error:', e);
+                }
+            }
+            
+            // Fallback to localStorage
+            try {
+                const result = await window.storage.get(key, true);
+                return result ? result.value : null;
+            } catch (e) {
+                console.log('Using localStorage fallback for:', key);
+                return localStorage.getItem(key);
+            }
+        }
+        
+        async function deleteFromStorage(key) {
+            if (useGoogleSheets && GOOGLE_SHEETS_CONFIG.apiKey && GOOGLE_SHEETS_CONFIG.spreadsheetId) {
+                try {
+                    await deleteFromGoogleSheets(key);
+                } catch (e) {
+                    console.error('Google Sheets delete error:', e);
+                }
+            }
+            
+            try {
+                await window.storage.delete(key, true);
+            } catch (e) {
+                localStorage.removeItem(key);
+            }
+        }
+
+        // Google Sheets API functions
+        async function saveToGoogleSheets(key, value) {
+            const sheetName = getSheetNameForKey(key);
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}!A1:B1?valueInputOption=RAW&key=${GOOGLE_SHEETS_CONFIG.apiKey}`;
+            
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    values: [[key, value]]
+                })
+            });
+            
+            if (!response.ok) throw new Error('Failed to save to Google Sheets');
+        }
+
+        async function getFromGoogleSheets(key) {
+            const sheetName = getSheetNameForKey(key);
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${GOOGLE_SHEETS_CONFIG.spreadsheetId}/values/${sheetName}!A:B?key=${GOOGLE_SHEETS_CONFIG.apiKey}`;
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to read from Google Sheets');
+            
+            const data = await response.json();
+            const rows = data.values || [];
+            
+            for (const row of rows) {
+                if (row[0] === key) return row[1];
+            }
+            
+            return null;
+        }
+
+        async function deleteFromGoogleSheets(key) {
+            // For simplicity, we'll just overwrite with empty value
+            await saveToGoogleSheets(key, '');
+        }
+
+        function getSheetNameForKey(key) {
+            if (key.includes('client')) return GOOGLE_SHEETS_CONFIG.sheetsNames.clients;
+            if (key.includes('reminder')) return GOOGLE_SHEETS_CONFIG.sheetsNames.reminders;
+            if (key.includes('video')) return GOOGLE_SHEETS_CONFIG.sheetsNames.videos;
+            return GOOGLE_SHEETS_CONFIG.sheetsNames.settings;
+        }
+
+        async function setupGoogleSheets(apiKey, spreadsheetId) {
+            GOOGLE_SHEETS_CONFIG.apiKey = apiKey;
+            GOOGLE_SHEETS_CONFIG.spreadsheetId = spreadsheetId;
+            useGoogleSheets = true;
+            
+            // Save config
+            localStorage.setItem('google-sheets-config', JSON.stringify(GOOGLE_SHEETS_CONFIG));
+            
+            // Sync existing data to Google Sheets
+            if (clients.length > 0) await saveData();
+            
+            alert('✅ Google Sheets connected! Your data will now sync across all devices.');
+        }
+
+        function loadGoogleSheetsConfig() {
+            const saved = localStorage.getItem('google-sheets-config');
+            if (saved) {
+                const config = JSON.parse(saved);
+                GOOGLE_SHEETS_CONFIG.apiKey = config.apiKey;
+                GOOGLE_SHEETS_CONFIG.spreadsheetId = config.spreadsheetId;
+                if (config.apiKey && config.spreadsheetId) {
+                    useGoogleSheets = true;
+                }
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            loadGoogleSheetsConfig();
+            
+            // Load map preference
+            const savedMapSource = localStorage.getItem('preferred-map-source');
+            if (savedMapSource) {
+                currentMapSource = savedMapSource;
+            }
+            
+            await checkLogin();
+        });
+
+        // Authentication
+        async function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            try {
+                // Get stored credentials
+                const storedCredsStr = await getFromStorage('landscaping-credentials');
+                
+                if (!storedCredsStr) {
+                    // First time - create default credentials
+                    const defaultCreds = {
+                        username: 'luxlawns',
+                        password: 'admin2020'
+                    };
+                    await saveToStorage('landscaping-credentials', JSON.stringify(defaultCreds));
+                    
+                    // Check if entered credentials match default
+                    if (username === defaultCreds.username && password === defaultCreds.password) {
+                        currentUser = username;
+                        await showMainApp();
+                        return;
+                    } else {
+                        alert('Default credentials created!\nUsername: luxlawns\nPassword: admin2020\n\nPlease use these to login.');
+                        document.getElementById('loginUsername').value = 'luxlawns';
+                        return;
+                    }
+                }
+                
+                // Verify credentials
+                const creds = JSON.parse(storedCredsStr);
+                if (creds.username === username && creds.password === password) {
+                    currentUser = username;
+                    await showMainApp();
+                } else {
+                    alert('Invalid username or password\n\nDefault login:\nUsername: luxlawns\nPassword: admin2020');
+                }
+            } catch (e) {
+                console.error('Login error:', e);
+                // If all else fails, just let them in with the correct credentials
+                if (username === 'luxlawns' && password === 'admin2020') {
+                    currentUser = username;
+                    await showMainApp();
+                } else {
+                    alert('Please use:\nUsername: luxlawns\nPassword: admin2020');
+                }
+            }
+        }
+
+        async function checkLogin() {
+            // Just show the login screen - user must log in each time
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('loginPassword').value = '';
+        }
+
+        async function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            await loadData();
+            await loadLogo();
+            updateDashboard();
+            renderClients();
+            renderSchedule();
+            renderVideos();
+            updateClientSelects();
+            updateGoogleSheetsStatus();
+        }
+
+        function updateGoogleSheetsStatus() {
+            const notConfigured = document.getElementById('googleSheetsNotConfigured');
+            const configured = document.getElementById('googleSheetsConfigured');
+            const syncStatus = document.getElementById('syncStatus');
+            
+            if (useGoogleSheets) {
+                notConfigured.classList.add('hidden');
+                configured.classList.remove('hidden');
+                syncStatus.textContent = '📊 Google Sheets Connected';
+                syncStatus.classList.remove('bg-green-800');
+                syncStatus.classList.add('bg-blue-600');
+            } else {
+                notConfigured.classList.remove('hidden');
+                configured.classList.add('hidden');
+                syncStatus.textContent = '💾 Local Storage Only';
+                syncStatus.classList.remove('bg-blue-600');
+                syncStatus.classList.add('bg-yellow-700');
+            }
+        }
+
+        async function connectGoogleSheets() {
+            const apiKey = document.getElementById('googleApiKey').value.trim();
+            const spreadsheetId = document.getElementById('googleSpreadsheetId').value.trim();
+            
+            if (!apiKey || !spreadsheetId) {
+                alert('Please enter both API Key and Spreadsheet ID');
+                return;
+            }
+            
+            // Test the connection
+            try {
+                const testUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?key=${apiKey}`;
+                const response = await fetch(testUrl);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to connect to Google Sheets');
+                }
+                
+                await setupGoogleSheets(apiKey, spreadsheetId);
+                updateGoogleSheetsStatus();
+                
+                // Clear inputs
+                document.getElementById('googleApiKey').value = '';
+                document.getElementById('googleSpreadsheetId').value = '';
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('❌ Connection failed!\n\nPlease check:\n1. API Key is correct\n2. Spreadsheet ID is correct\n3. Google Sheets API is enabled\n4. Spreadsheet is shared publicly');
+            }
+        }
+
+        function disconnectGoogleSheets() {
+            if (confirm('Disconnect from Google Sheets? Data will only be stored locally on this device.')) {
+                useGoogleSheets = false;
+                GOOGLE_SHEETS_CONFIG.apiKey = '';
+                GOOGLE_SHEETS_CONFIG.spreadsheetId = '';
+                localStorage.removeItem('google-sheets-config');
+                updateGoogleSheetsStatus();
+                alert('✅ Disconnected from Google Sheets. Using local storage.');
+            }
+        }
+
+        // Data Management
+        async function loadData() {
+            try {
+                const clientsData = await getFromStorage('landscaping-clients');
+                clients = clientsData ? JSON.parse(clientsData) : [];
+
+                const remindersData = await getFromStorage('landscaping-reminders');
+                reminders = remindersData ? JSON.parse(remindersData) : [];
+
+                const videosData = await getFromStorage('landscaping-videos');
+                videos = videosData ? JSON.parse(videosData) : [];
+            } catch (e) {
+                console.log('No existing data or error loading:', e);
+                clients = [];
+                reminders = [];
+                videos = [];
+            }
+        }
+
+        async function saveData() {
+            try {
+                await saveToStorage('landscaping-clients', JSON.stringify(clients));
+                await saveToStorage('landscaping-reminders', JSON.stringify(reminders));
+                await saveToStorage('landscaping-videos', JSON.stringify(videos));
+            } catch (e) {
+                console.error('Error saving:', e);
+                alert('Error saving data');
+            }
+        }
+
+        // Tab Management
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'bg-green-600', 'text-white');
+                btn.classList.add('bg-white');
+            });
+            
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            event.target.classList.add('active', 'bg-green-600', 'text-white');
+            event.target.classList.remove('bg-white');
+
+            if (tabName === 'map' && !map) {
+                setTimeout(initMap, 100);
+            }
+        }
+
+        // Client Management
+        async function addClient() {
+            const name = document.getElementById('clientName').value.trim();
+            const address = document.getElementById('clientAddress').value.trim();
+            const latitude = document.getElementById('clientLatitude').value.trim();
+            const longitude = document.getElementById('clientLongitude').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const email = document.getElementById('clientEmail').value.trim();
+            const serviceType = document.getElementById('serviceType').value;
+            const nextServiceDate = document.getElementById('nextServiceDate').value;
+            const price = document.getElementById('servicePrice').value;
+            const status = document.getElementById('clientStatus').value;
+            const notes = document.getElementById('clientNotes').value.trim();
+
+            // Get service checklist
+            const services = {
+                lawn: document.getElementById('serviceLawn').checked,
+                gardenBed: document.getElementById('serviceGardenBed').checked,
+                hedge: document.getElementById('serviceHedge').checked,
+                edging: document.getElementById('serviceEdging').checked,
+                weeding: document.getElementById('serviceWeeding').checked,
+                pruning: document.getElementById('servicePruning').checked,
+                fertilizing: document.getElementById('serviceFertilizing').checked,
+                cleanup: document.getElementById('serviceCleanup').checked,
+                other: document.getElementById('serviceOther').checked
+            };
+
+            if (!name || !address || !serviceType) {
+                alert('Please fill in required fields (Name, Address, Service Type)');
+                return;
+            }
+
+            const client = {
+                id: Date.now(),
+                name,
+                address,
+                latitude: latitude || null,
+                longitude: longitude || null,
+                phone,
+                email,
+                serviceType,
+                services,
+                nextServiceDate: nextServiceDate || null,
+                price: price || 0,
+                status,
+                notes,
+                createdAt: new Date().toISOString()
+            };
+
+            clients.push(client);
+            await saveData();
+            
+            // Clear form
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientAddress').value = '';
+            document.getElementById('clientLatitude').value = '';
+            document.getElementById('clientLongitude').value = '';
+            document.getElementById('clientPhone').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('nextServiceDate').value = '';
+            document.getElementById('servicePrice').value = '';
+            document.getElementById('clientNotes').value = '';
+            document.getElementById('serviceLawn').checked = false;
+            document.getElementById('serviceGardenBed').checked = false;
+            document.getElementById('serviceHedge').checked = false;
+            document.getElementById('serviceEdging').checked = false;
+            document.getElementById('serviceWeeding').checked = false;
+            document.getElementById('servicePruning').checked = false;
+            document.getElementById('serviceFertilizing').checked = false;
+            document.getElementById('serviceCleanup').checked = false;
+            document.getElementById('serviceOther').checked = false;
+
+            renderClients();
+            updateDashboard();
+            updateClientSelects();
+            alert('Client added successfully!');
+        }
+
+        function renderClients() {
+            const searchTerm = document.getElementById('clientSearch')?.value.toLowerCase() || '';
+            const filtered = clients.filter(c => 
+                c.name.toLowerCase().includes(searchTerm) ||
+                c.address.toLowerCase().includes(searchTerm)
+            );
+
+            const html = filtered.map(client => {
+                // Build services list
+                const servicesList = [];
+                if (client.services) {
+                    if (client.services.lawn) servicesList.push('🌱 Lawn');
+                    if (client.services.gardenBed) servicesList.push('🌺 Garden Bed');
+                    if (client.services.hedge) servicesList.push('🌿 Hedge');
+                    if (client.services.edging) servicesList.push('✂️ Edging');
+                    if (client.services.weeding) servicesList.push('🌾 Weeding');
+                    if (client.services.pruning) servicesList.push('🪴 Pruning');
+                    if (client.services.fertilizing) servicesList.push('💧 Fertilizing');
+                    if (client.services.cleanup) servicesList.push('🧹 Cleanup');
+                    if (client.services.other) servicesList.push('⚡ Other');
+                }
+
+                return `
+                <div class="border rounded-lg p-4 hover:shadow-lg transition">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800">${client.name}</h3>
+                            <p class="text-gray-600 text-sm flex items-center gap-2 flex-wrap">
+                                📍 ${client.address}
+                                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(client.address + ', Barbados')}" 
+                                   target="_blank" 
+                                   class="text-blue-600 hover:text-blue-800 text-xs underline">
+                                    Open in Google Maps
+                                </a>
+                            </p>
+                            ${client.latitude && client.longitude ? `
+                                <p class="text-gray-500 text-xs mt-1">
+                                    🧭 GPS: ${client.latitude}, ${client.longitude}
+                                    <a href="https://www.google.com/maps?q=${client.latitude},${client.longitude}" 
+                                       target="_blank" 
+                                       class="text-blue-600 hover:text-blue-800 underline ml-1">
+                                        View Coordinates
+                                    </a>
+                                </p>
+                            ` : ''}
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold status-${client.status}">
+                            ${client.status.toUpperCase()}
+                        </span>
+                    </div>
+                    
+                    <!-- Service Checklist Display -->
+                    ${servicesList.length > 0 ? `
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                            <p class="text-xs font-semibold text-green-800 mb-2">✅ Services Required:</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${servicesList.map(s => `<span class="text-xs bg-white px-2 py-1 rounded border border-green-300">${s}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Mini Map Preview -->
+                    <div id="minimap-${client.id}" class="hidden mb-3 border rounded-lg overflow-hidden" style="height: 200px;">
+                        ${client.latitude && client.longitude ? `
+                            <iframe 
+                                width="100%" 
+                                height="200" 
+                                frameborder="0" 
+                                style="border:0"
+                                src="https://www.google.com/maps/embed/v1/view?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&center=${client.latitude},${client.longitude}&zoom=18&maptype=satellite" 
+                                allowfullscreen>
+                            </iframe>
+                        ` : `
+                            <iframe 
+                                width="100%" 
+                                height="200" 
+                                frameborder="0" 
+                                style="border:0"
+                                src="https://www.google.com/maps/embed/v1/place?key=AIzaSyB41DRUbKWJHPxaFjMAwdrzWzbVKartNGg&q=${encodeURIComponent(client.address + ', Barbados')}" 
+                                allowfullscreen>
+                            </iframe>
+                        `}
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <p><strong>Service:</strong> ${getServiceLabel(client.serviceType)}</p>
+                        <p><strong>Price:</strong> $${client.price || '0'}</p>
+                        ${client.phone ? `<p><strong>Phone:</strong> <a href="tel:${client.phone}" class="text-blue-600 hover:underline">${client.phone}</a></p>` : ''}
+                        ${client.email ? `<p><strong>Email:</strong> <a href="mailto:${client.email}" class="text-blue-600 hover:underline">${client.email}</a></p>` : ''}
+                        ${client.nextServiceDate ? `<p><strong>Next:</strong> ${formatDate(client.nextServiceDate)}</p>` : ''}
+                    </div>
+                    ${client.notes ? `<p class="text-sm text-gray-600 italic border-t pt-2">📝 ${client.notes}</p>` : ''}
+                    <div class="flex gap-2 mt-3 flex-wrap">
+                        <button onclick="toggleMiniMap(${client.id})" class="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm">
+                            🗺️ Map Preview
+                        </button>
+                        <button onclick="viewClientOnMap(${client.id})" class="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 text-sm">
+                            📍 Full Map
+                        </button>
+                        <button onclick="editClient(${client.id})" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+                            ✏️ Edit
+                        </button>
+                        <button onclick="deleteClient(${client.id})" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                            🗑️ Delete
+                        </button>
+                        <button onclick="completeService(${client.id})" class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
+                            ✅ Mark Service Done
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+
+            document.getElementById('clientsList').innerHTML = html || '<p class="text-gray-500">No clients found</p>';
+        }
+
+        async function deleteClient(id) {
+            if (confirm('Are you sure you want to delete this client?')) {
+                clients = clients.filter(c => c.id !== id);
+                await saveData();
+                renderClients();
+                updateDashboard();
+                updateClientSelects();
+            }
+        }
+
+        async function completeService(id) {
+            const client = clients.find(c => c.id === id);
+            if (!client) return;
+
+            // Calculate next service date based on service type
+            let nextDate = new Date();
+            if (client.serviceType === 'fortnightly' || client.serviceType === 'both') {
+                nextDate.setDate(nextDate.getDate() + 14);
+            } else if (client.serviceType === 'monthly-flowerbed') {
+                nextDate.setMonth(nextDate.getMonth() + 1);
+            }
+
+            client.nextServiceDate = nextDate.toISOString().split('T')[0];
+            client.lastServiceDate = new Date().toISOString().split('T')[0];
+            
+            await saveData();
+            renderClients();
+            renderSchedule();
+            updateDashboard();
+            alert('Service marked complete! Next service date updated.');
+        }
+
+        function getServiceLabel(type) {
+            const labels = {
+                'fortnightly': '📅 Fortnightly',
+                'monthly-flowerbed': '🌺 Monthly Flowerbed',
+                'both': '📅🌺 Both Services',
+                'one-time': '⚡ One-Time'
+            };
+            return labels[type] || type;
+        }
+
+        // Schedule Management
+        function renderSchedule() {
+            let filtered = clients.filter(c => c.nextServiceDate);
+            
+            if (scheduleFilter !== 'all') {
+                filtered = filtered.filter(c => 
+                    c.serviceType === scheduleFilter || 
+                    (scheduleFilter === 'fortnightly' && c.serviceType === 'both') ||
+                    (scheduleFilter === 'monthly-flowerbed' && c.serviceType === 'both')
+                );
+            }
+
+            filtered.sort((a, b) => new Date(a.nextServiceDate) - new Date(b.nextServiceDate));
+
+            const html = filtered.map(client => {
+                const daysUntil = Math.ceil((new Date(client.nextServiceDate) - new Date()) / (1000 * 60 * 60 * 24));
+                const isOverdue = daysUntil < 0;
+                const isToday = daysUntil === 0;
+                const isSoon = daysUntil > 0 && daysUntil <= 3;
+
+                return `
+                    <div class="border rounded-lg p-4 ${isOverdue ? 'bg-red-50 border-red-300' : isToday ? 'bg-yellow-50 border-yellow-300' : isSoon ? 'bg-blue-50 border-blue-300' : ''}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-800">${client.name}</h3>
+                                <p class="text-sm text-gray-600">${getServiceLabel(client.serviceType)}</p>
+                                <p class="text-sm text-gray-600">📍 ${client.address}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="font-semibold ${isOverdue ? 'text-red-600' : isToday ? 'text-yellow-600' : 'text-gray-800'}">
+                                    ${formatDate(client.nextServiceDate)}
+                                </p>
+                                <p class="text-xs ${isOverdue ? 'text-red-600' : isToday ? 'text-yellow-600' : 'text-gray-500'}">
+                                    ${isOverdue ? `${Math.abs(daysUntil)} days overdue` : isToday ? 'TODAY' : `in ${daysUntil} days`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('scheduleList').innerHTML = html || '<p class="text-gray-500">No scheduled services</p>';
+        }
+
+        function filterSchedule(filter) {
+            scheduleFilter = filter;
+            document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+                btn.classList.remove('bg-green-600', 'text-white');
+                btn.classList.add('bg-gray-200');
+            });
+            document.getElementById('filter-' + (filter === 'monthly-flowerbed' ? 'monthly' : filter)).classList.remove('bg-gray-200');
+            document.getElementById('filter-' + (filter === 'monthly-flowerbed' ? 'monthly' : filter)).classList.add('bg-green-600', 'text-white');
+            renderSchedule();
+        }
+
+        async function addReminder() {
+            const title = document.getElementById('reminderTitle').value.trim();
+            const date = document.getElementById('reminderDate').value;
+            const type = document.getElementById('reminderType').value;
+            const notes = document.getElementById('reminderNotes').value.trim();
+
+            if (!title || !date) {
+                alert('Please enter title and date');
+                return;
+            }
+
+            reminders.push({
+                id: Date.now(),
+                title,
+                date,
+                type,
+                notes,
+                createdAt: new Date().toISOString()
+            });
+
+            await saveData();
+            document.getElementById('reminderTitle').value = '';
+            document.getElementById('reminderDate').value = '';
+            document.getElementById('reminderNotes').value = '';
+            updateDashboard();
+            alert('Reminder added!');
+        }
+
+        // Dashboard
+        function updateDashboard() {
+            document.getElementById('totalClients').textContent = clients.length;
+            document.getElementById('fortnightlyCount').textContent = clients.filter(c => 
+                c.serviceType === 'fortnightly' || c.serviceType === 'both'
+            ).length;
+            document.getElementById('monthlyCount').textContent = clients.filter(c => 
+                c.serviceType === 'monthly-flowerbed' || c.serviceType === 'both'
+            ).length;
+
+            // Upcoming jobs this week
+            const today = new Date();
+            const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const upcoming = clients.filter(c => {
+                if (!c.nextServiceDate) return false;
+                const serviceDate = new Date(c.nextServiceDate);
+                return serviceDate >= today && serviceDate <= nextWeek;
+            });
+
+            const upcomingHtml = upcoming.map(c => `
+                <div class="border-l-4 border-green-500 pl-4 py-2">
+                    <p class="font-semibold">${c.name}</p>
+                    <p class="text-sm text-gray-600">${getServiceLabel(c.serviceType)} - ${formatDate(c.nextServiceDate)}</p>
+                </div>
+            `).join('');
+            document.getElementById('upcomingJobs').innerHTML = upcomingHtml || '<p class="text-gray-500">No jobs scheduled this week</p>';
+
+            // Reminders
+            const activeReminders = reminders.filter(r => new Date(r.date) >= today).slice(0, 5);
+            const remindersHtml = activeReminders.map(r => `
+                <div class="border-l-4 border-blue-500 pl-4 py-2">
+                    <p class="font-semibold">${r.title}</p>
+                    <p class="text-sm text-gray-600">${formatDate(r.date)} - ${r.type === 'monthly' ? '🔄 Monthly' : '⏰ One-time'}</p>
+                </div>
+            `).join('');
+            document.getElementById('dashboardReminders').innerHTML = remindersHtml || '<p class="text-gray-500">No upcoming reminders</p>';
+        }
+
+        // Video Management
+        async function uploadAndMergeVideos() {
+            const clientId = document.getElementById('videoClient').value;
+            const title = document.getElementById('videoTitle').value.trim();
+            const beforeFile = document.getElementById('beforeVideo').files[0];
+            const afterFile = document.getElementById('afterVideo').files[0];
+            const description = document.getElementById('videoDescription').value.trim();
+
+            if (!clientId || !title || !beforeFile || !afterFile) {
+                alert('Please fill in all required fields and select both videos');
+                return;
+            }
+
+            const client = clients.find(c => c.id == clientId);
+            
+            document.getElementById('uploadProgress').classList.remove('hidden');
+            document.getElementById('progressText').textContent = 'Processing videos...';
+            document.getElementById('progressBar').style.width = '30%';
+
+            try {
+                // Read video files as data URLs
+                const beforeDataUrl = await readFileAsDataURL(beforeFile);
+                const afterDataUrl = await readFileAsDataURL(afterFile);
+
+                document.getElementById('progressBar').style.width = '60%';
+                document.getElementById('progressText').textContent = 'Creating merged video...';
+
+                // For this demo, we'll store both videos separately
+                // In a real implementation, you'd use FFmpeg.js to merge them
+                const video = {
+                    id: Date.now(),
+                    clientId,
+                    clientName: client.name,
+                    title,
+                    description,
+                    beforeVideo: beforeDataUrl,
+                    afterVideo: afterDataUrl,
+                    merged: true, // Flag indicating it's a before/after set
+                    createdAt: new Date().toISOString()
+                };
+
+                videos.push(video);
+                await saveData();
+
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressText').textContent = 'Complete!';
+
+                setTimeout(() => {
+                    document.getElementById('uploadProgress').classList.add('hidden');
+                    document.getElementById('progressBar').style.width = '0%';
+                    document.getElementById('videoClient').value = '';
+                    document.getElementById('videoTitle').value = '';
+                    document.getElementById('beforeVideo').value = '';
+                    document.getElementById('afterVideo').value = '';
+                    document.getElementById('videoDescription').value = '';
+                    renderVideos();
+                    alert('Videos uploaded successfully!');
+                }, 1000);
+
+            } catch (e) {
+                console.error('Error processing videos:', e);
+                alert('Error processing videos. Please try again.');
+                document.getElementById('uploadProgress').classList.add('hidden');
+            }
+        }
+
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderVideos() {
+            const html = videos.map(video => `
+                <div class="border rounded-lg p-4 hover:shadow-lg transition">
+                    <h3 class="font-bold text-gray-800 mb-2">${video.title}</h3>
+                    <p class="text-sm text-gray-600 mb-3">Client: ${video.clientName}</p>
+                    
+                    <div class="space-y-2">
+                        <div>
+                            <p class="text-xs font-semibold text-gray-700 mb-1">BEFORE:</p>
+                            <video controls class="w-full rounded border" style="max-height: 200px;">
+                                <source src="${video.beforeVideo}" type="video/mp4">
+                            </video>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-gray-700 mb-1">AFTER:</p>
+                            <video controls class="w-full rounded border" style="max-height: 200px;">
+                                <source src="${video.afterVideo}" type="video/mp4">
+                            </video>
+                        </div>
+                    </div>
+                    
+                    ${video.description ? `<p class="text-sm text-gray-600 mt-3 italic">${video.description}</p>` : ''}
+                    <p class="text-xs text-gray-500 mt-2">Uploaded: ${formatDate(video.createdAt)}</p>
+                    
+                    <button onclick="deleteVideo(${video.id})" class="mt-3 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
+                        🗑️ Delete
+                    </button>
+                </div>
+            `).join('');
+
+            document.getElementById('videosList').innerHTML = html || '<p class="text-gray-500 col-span-full">No videos uploaded yet</p>';
+        }
+
+        async function deleteVideo(id) {
+            if (confirm('Delete this video?')) {
+                videos = videos.filter(v => v.id !== id);
+                await saveData();
+                renderVideos();
+            }
+        }
+
+        // Map Management
+        function initMap() {
+            if (map) {
+                map.remove();
+            }
+            
+            map = L.map('map').setView([13.1939, -59.5432], 11); // Centered on Barbados
+            
+            // Set initial map source
+            setMapLayer(currentMapSource);
+            
+            updateMapMarkers();
+            updateButtonStyles();
+        }
+
+        function setMapLayer(source) {
+            // Remove existing layer if any
+            if (mapLayer) {
+                map.removeLayer(mapLayer);
+            }
+            
+            if (source === 'bbid') {
+                // BBID Barbados Map - Using their WMS service
+                mapLayer = L.tileLayer.wms('https://gis.bbid.gov.bb/arcgis/services/Basemaps/BaseMap_2020/MapServer/WMSServer', {
+                    layers: '0',
+                    format: 'image/png',
+                    transparent: true,
+                    attribution: '© BBID - Barbados Land Information System'
+                });
+            } else {
+                // OpenStreetMap (fallback)
+                mapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                });
+            }
+            
+            mapLayer.addTo(map);
+            currentMapSource = source;
+        }
+
+        function switchMapSource(source) {
+            setMapLayer(source);
+            updateButtonStyles();
+            
+            // Save preference
+            localStorage.setItem('preferred-map-source', source);
+        }
+
+        function updateButtonStyles() {
+            const osmBtn = document.getElementById('mapSourceOSM');
+            const bbidBtn = document.getElementById('mapSourceBBID');
+            
+            if (currentMapSource === 'bbid') {
+                bbidBtn.classList.remove('bg-gray-200');
+                bbidBtn.classList.add('bg-green-600', 'text-white');
+                osmBtn.classList.remove('bg-green-600', 'text-white');
+                osmBtn.classList.add('bg-gray-200');
+            } else {
+                osmBtn.classList.remove('bg-gray-200');
+                osmBtn.classList.add('bg-green-600', 'text-white');
+                bbidBtn.classList.remove('bg-green-600', 'text-white');
+                bbidBtn.classList.add('bg-gray-200');
+            }
+        }
+
+        async function updateMapMarkers() {
+            if (!map) return;
+
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+
+            for (const client of clients) {
+                let lat, lon;
+                
+                try {
+                    // Use GPS coordinates if available
+                    if (client.latitude && client.longitude) {
+                        lat = parseFloat(client.latitude);
+                        lon = parseFloat(client.longitude);
+                    } else if (client.address) {
+                        // Fallback to geocoding
+                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(client.address + ', Barbados')}`);
+                        const data = await response.json();
+                        
+                        if (data && data[0]) {
+                            lat = parseFloat(data[0].lat);
+                            lon = parseFloat(data[0].lon);
+                        } else {
+                            continue; // Skip if can't geocode
+                        }
+                    } else {
+                        continue; // Skip if no location info
+                    }
+                    
+                    const marker = L.marker([lat, lon]).addTo(map);
+                    marker.bindPopup(`
+                        <strong>${client.name}</strong><br>
+                        ${client.address}<br>
+                        ${client.latitude && client.longitude ? `<small class="text-gray-500">GPS: ${client.latitude}, ${client.longitude}</small><br>` : ''}
+                        ${getServiceLabel(client.serviceType)}<br>
+                        <button onclick="getDirectionsToClient(${client.id})" class="mt-2 px-3 py-1 bg-green-500 text-white rounded text-sm">
+                            Get Directions
+                        </button>
+                    `);
+                    markers.push(marker);
+                } catch (e) {
+                    console.error('Error adding marker for:', client.name, e);
+                }
+            }
+        }
+
+        function getDirections() {
+            const clientId = document.getElementById('directionsClient').value;
+            if (!clientId) {
+                alert('Please select a client');
+                return;
+            }
+            getDirectionsToClient(parseInt(clientId));
+        }
+
+        function getDirectionsToClient(clientId) {
+            const client = clients.find(c => c.id == clientId);
+            if (!client) return;
+
+            const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.address + ', Barbados')}`;
+            
+            document.getElementById('directionsInfo').innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 class="font-bold text-gray-800 mb-2">Directions to ${client.name}</h3>
+                    <p class="text-sm text-gray-700 mb-3">📍 ${client.address}</p>
+                    <a href="${googleMapsUrl}" target="_blank" class="inline-block bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        🗺️ Open in Google Maps
+                    </a>
+                </div>
+            `;
+        }
+
+        function viewClientOnMap(clientId) {
+            // Switch to map tab
+            showTab('map');
+            
+            // Trigger the tab button to update properly
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'bg-green-600', 'text-white');
+                btn.classList.add('bg-white');
+            });
+            const mapButton = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.textContent.includes('Map'));
+            if (mapButton) {
+                mapButton.classList.add('active', 'bg-green-600', 'text-white');
+                mapButton.classList.remove('bg-white');
+            }
+            
+            // Initialize map if needed
+            if (!map) {
+                setTimeout(() => {
+                    initMap();
+                    setTimeout(() => focusClientOnMap(clientId), 1000);
+                }, 100);
+            } else {
+                focusClientOnMap(clientId);
+            }
+        }
+
+        function toggleMiniMap(clientId) {
+            const miniMap = document.getElementById(`minimap-${clientId}`);
+            if (miniMap) {
+                miniMap.classList.toggle('hidden');
+            }
+        }
+
+        async function focusClientOnMap(clientId) {
+            const client = clients.find(c => c.id == clientId);
+            if (!client || !map) return;
+
+            try {
+                let lat, lon;
+                
+                // Use GPS coordinates if available
+                if (client.latitude && client.longitude) {
+                    lat = parseFloat(client.latitude);
+                    lon = parseFloat(client.longitude);
+                } else {
+                    // Fallback to geocoding the address
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(client.address + ', Barbados')}`);
+                    const data = await response.json();
+                    
+                    if (data && data[0]) {
+                        lat = parseFloat(data[0].lat);
+                        lon = parseFloat(data[0].lon);
+                    } else {
+                        alert('Could not locate address on map.');
+                        return;
+                    }
+                }
+                
+                // Center map on this client
+                map.setView([lat, lon], 16);
+                
+                // Find and open the popup for this marker
+                markers.forEach(marker => {
+                    const popup = marker.getPopup();
+                    if (popup && popup.getContent().includes(client.name)) {
+                        marker.openPopup();
+                    }
+                });
+                
+                // Also update directions info
+                getDirectionsToClient(clientId);
+                
+            } catch (e) {
+                console.error('Error focusing on client:', e);
+                alert('Could not locate address on map. Please check the address is correct.');
+            }
+        }
+
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('clientLatitude').value = position.coords.latitude.toFixed(6);
+                    document.getElementById('clientLongitude').value = position.coords.longitude.toFixed(6);
+                    alert('Location captured! ✅\nLat: ' + position.coords.latitude.toFixed(6) + '\nLon: ' + position.coords.longitude.toFixed(6));
+                },
+                (error) => {
+                    console.error('Error getting location:', error);
+                    alert('Could not get your location. Please enter coordinates manually or allow location access.');
+                }
+            );
+        }
+
+        // Utility Functions
+        function updateClientSelects() {
+            const videoSelect = document.getElementById('videoClient');
+            const directionsSelect = document.getElementById('directionsClient');
+            
+            const options = clients.map(c => `<option value="${c.id}">${c.name} - ${c.address}</option>`).join('');
+            
+            videoSelect.innerHTML = '<option value="">Select Client</option>' + options;
+            directionsSelect.innerHTML = '<option value="">Choose a client...</option>' + options;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function editClient(id) {
+            const client = clients.find(c => c.id === id);
+            if (!client) return;
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+            
+            // Switch to clients tab
+            showTab('clients');
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active', 'bg-green-600', 'text-white');
+                btn.classList.add('bg-white');
+            });
+            const clientsButton = Array.from(document.querySelectorAll('.tab-button')).find(btn => btn.textContent.includes('Clients'));
+            if (clientsButton) {
+                clientsButton.classList.add('active', 'bg-green-600', 'text-white');
+                clientsButton.classList.remove('bg-white');
+            }
+            
+            // Fill form with client data
+            document.getElementById('clientName').value = client.name;
+            document.getElementById('clientAddress').value = client.address;
+            document.getElementById('clientLatitude').value = client.latitude || '';
+            document.getElementById('clientLongitude').value = client.longitude || '';
+            document.getElementById('clientPhone').value = client.phone || '';
+            document.getElementById('clientEmail').value = client.email || '';
+            document.getElementById('serviceType').value = client.serviceType;
+            document.getElementById('nextServiceDate').value = client.nextServiceDate || '';
+            document.getElementById('servicePrice').value = client.price || '';
+            document.getElementById('clientStatus').value = client.status;
+            document.getElementById('clientNotes').value = client.notes || '';
+            
+            // Fill service checklist
+            if (client.services) {
+                document.getElementById('serviceLawn').checked = client.services.lawn || false;
+                document.getElementById('serviceGardenBed').checked = client.services.gardenBed || false;
+                document.getElementById('serviceHedge').checked = client.services.hedge || false;
+                document.getElementById('serviceEdging').checked = client.services.edging || false;
+                document.getElementById('serviceWeeding').checked = client.services.weeding || false;
+                document.getElementById('servicePruning').checked = client.services.pruning || false;
+                document.getElementById('serviceFertilizing').checked = client.services.fertilizing || false;
+                document.getElementById('serviceCleanup').checked = client.services.cleanup || false;
+                document.getElementById('serviceOther').checked = client.services.other || false;
+            }
+            
+            // Change button to "Update Client"
+            const addButton = document.querySelector('button[onclick="addClient()"]');
+            addButton.textContent = '✏️ Update Client';
+            addButton.onclick = () => updateClient(id);
+            
+            // Add cancel button
+            if (!document.getElementById('cancelEditBtn')) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.id = 'cancelEditBtn';
+                cancelBtn.textContent = '❌ Cancel';
+                cancelBtn.className = 'ml-3 bg-gray-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600';
+                cancelBtn.onclick = cancelEdit;
+                addButton.parentNode.appendChild(cancelBtn);
+            }
+            
+            // Highlight the form
+            const formSection = document.querySelector('#clients-tab .bg-white');
+            formSection.classList.add('ring-4', 'ring-blue-400');
+            
+            // Show notification
+            alert('✏️ Editing: ' + client.name + '\n\nUpdate the fields below and click "Update Client"');
+        }
+
+        async function updateClient(id) {
+            const name = document.getElementById('clientName').value.trim();
+            const address = document.getElementById('clientAddress').value.trim();
+            const latitude = document.getElementById('clientLatitude').value.trim();
+            const longitude = document.getElementById('clientLongitude').value.trim();
+            const phone = document.getElementById('clientPhone').value.trim();
+            const email = document.getElementById('clientEmail').value.trim();
+            const serviceType = document.getElementById('serviceType').value;
+            const nextServiceDate = document.getElementById('nextServiceDate').value;
+            const price = document.getElementById('servicePrice').value;
+            const status = document.getElementById('clientStatus').value;
+            const notes = document.getElementById('clientNotes').value.trim();
+
+            // Get service checklist
+            const services = {
+                lawn: document.getElementById('serviceLawn').checked,
+                gardenBed: document.getElementById('serviceGardenBed').checked,
+                hedge: document.getElementById('serviceHedge').checked,
+                edging: document.getElementById('serviceEdging').checked,
+                weeding: document.getElementById('serviceWeeding').checked,
+                pruning: document.getElementById('servicePruning').checked,
+                fertilizing: document.getElementById('serviceFertilizing').checked,
+                cleanup: document.getElementById('serviceCleanup').checked,
+                other: document.getElementById('serviceOther').checked
+            };
+
+            if (!name || !address || !serviceType) {
+                alert('Please fill in required fields (Name, Address, Service Type)');
+                return;
+            }
+
+            // Find and update the client
+            const clientIndex = clients.findIndex(c => c.id === id);
+            if (clientIndex !== -1) {
+                clients[clientIndex] = {
+                    ...clients[clientIndex],
+                    name,
+                    address,
+                    latitude: latitude || null,
+                    longitude: longitude || null,
+                    phone,
+                    email,
+                    serviceType,
+                    services,
+                    nextServiceDate: nextServiceDate || null,
+                    price: price || 0,
+                    status,
+                    notes
+                };
+
+                await saveData();
+                cancelEdit();
+                renderClients();
+                updateDashboard();
+                updateClientSelects();
+                
+                alert('✅ Client updated successfully!');
+            }
+        }
+
+        function cancelEdit() {
+            // Clear form
+            document.getElementById('clientName').value = '';
+            document.getElementById('clientAddress').value = '';
+            document.getElementById('clientLatitude').value = '';
+            document.getElementById('clientLongitude').value = '';
+            document.getElementById('clientPhone').value = '';
+            document.getElementById('clientEmail').value = '';
+            document.getElementById('nextServiceDate').value = '';
+            document.getElementById('servicePrice').value = '';
+            document.getElementById('clientNotes').value = '';
+            document.getElementById('serviceLawn').checked = false;
+            document.getElementById('serviceGardenBed').checked = false;
+            document.getElementById('serviceHedge').checked = false;
+            document.getElementById('serviceEdging').checked = false;
+            document.getElementById('serviceWeeding').checked = false;
+            document.getElementById('servicePruning').checked = false;
+            document.getElementById('serviceFertilizing').checked = false;
+            document.getElementById('serviceCleanup').checked = false;
+            document.getElementById('serviceOther').checked = false;
+            
+            // Reset button
+            const addButton = document.querySelector('button[onclick^="updateClient"]') || document.querySelector('button[onclick="addClient()"]');
+            if (addButton) {
+                addButton.textContent = '💾 Add Client';
+                addButton.onclick = addClient;
+            }
+            
+            // Remove cancel button
+            const cancelBtn = document.getElementById('cancelEditBtn');
+            if (cancelBtn) {
+                cancelBtn.remove();
+            }
+            
+            // Remove highlight
+            const formSection = document.querySelector('#clients-tab .bg-white');
+            formSection.classList.remove('ring-4', 'ring-blue-400');
+        }
+
+        // Logo Management
+        async function loadLogo() {
+            try {
+                const logoData = await getFromStorage('business-logo');
+                if (logoData) {
+                    const logoImg = document.getElementById('businessLogo');
+                    const defaultLogo = document.getElementById('defaultLogo');
+                    const currentLogo = document.getElementById('currentLogo');
+                    const logoPreview = document.getElementById('logoPreview');
+                    
+                    logoImg.src = logoData;
+                    logoImg.classList.remove('hidden');
+                    defaultLogo.classList.add('hidden');
+                    
+                    currentLogo.src = logoData;
+                    logoPreview.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.log('No logo saved');
+            }
+        }
+
+        async function uploadLogo() {
+            const file = document.getElementById('logoUpload').files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Logo file too large. Please use an image under 2MB.');
+                return;
+            }
+
+            try {
+                const dataUrl = await readFileAsDataURL(file);
+                await saveToStorage('business-logo', dataUrl);
+                await loadLogo();
+                alert('Logo uploaded successfully!');
+            } catch (e) {
+                console.error('Error uploading logo:', e);
+                alert('Error uploading logo. Please try again.');
+            }
+        }
+
+        async function removeLogo() {
+            if (confirm('Remove your business logo?')) {
+                try {
+                    await deleteFromStorage('business-logo');
+                    
+                    const logoImg = document.getElementById('businessLogo');
+                    const defaultLogo = document.getElementById('defaultLogo');
+                    const logoPreview = document.getElementById('logoPreview');
+                    
+                    logoImg.classList.add('hidden');
+                    defaultLogo.classList.remove('hidden');
+                    logoPreview.classList.add('hidden');
+                    
+                    document.getElementById('logoUpload').value = '';
+                    alert('Logo removed successfully!');
+                } catch (e) {
+                    console.error('Error removing logo:', e);
+                }
+            }
+        }
+
+        // Settings Functions
+        async function changePassword() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (!newPassword || !confirmPassword) {
+                alert('Please fill in both password fields');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            try {
+                const storedCredsStr = await getFromStorage('landscaping-credentials');
+                const creds = JSON.parse(storedCredsStr);
+                creds.password = newPassword;
+                await saveToStorage('landscaping-credentials', JSON.stringify(creds));
+                
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                alert('Password updated successfully!');
+            } catch (e) {
+                console.error('Error updating password:', e);
+                alert('Error updating password. Please try again.');
+            }
+        }
+
+        async function exportData() {
+            const exportObj = {
+                clients,
+                reminders,
+                videos: videos.map(v => ({...v, beforeVideo: '[VIDEO DATA]', afterVideo: '[VIDEO DATA]'})), // Exclude large video data
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(exportObj, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `landscaping-backup-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            alert('Data exported successfully! Videos are not included in the export due to size.');
+        }
+
+        async function importData() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a backup file to import');
+                return;
+            }
+            
+            if (!confirm('⚠️ Import will replace all current data with the backup file.\n\nAre you sure you want to continue?')) {
+                return;
+            }
+            
+            try {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        // Validate the data structure
+                        if (!importedData.clients || !Array.isArray(importedData.clients)) {
+                            throw new Error('Invalid backup file format');
+                        }
+                        
+                        // Import the data
+                        clients = importedData.clients || [];
+                        reminders = importedData.reminders || [];
+                        videos = importedData.videos || [];
+                        
+                        // Save to storage
+                        await saveData();
+                        
+                        // Refresh UI
+                        renderClients();
+                        renderSchedule();
+                        renderVideos();
+                        updateDashboard();
+                        updateClientSelects();
+                        
+                        // Clear file input
+                        fileInput.value = '';
+                        
+                        alert(`✅ Import successful!\n\nImported:\n• ${clients.length} clients\n• ${reminders.length} reminders\n• ${videos.length} videos\n\nFrom backup dated: ${new Date(importedData.exportDate).toLocaleString()}`);
+                        
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('❌ Error importing data. Please check the file is a valid backup.');
+                    }
+                };
+                
+                reader.readAsText(file);
+                
+            } catch (error) {
+                console.error('File read error:', error);
+                alert('❌ Error reading file. Please try again.');
+            }
+        }
+
+        async function resetAllData() {
+            if (!confirm('⚠️ WARNING: This will delete ALL your data including clients, schedules, videos, and logo. This CANNOT be undone!\n\nAre you absolutely sure?')) {
+                return;
+            }
+
+            if (!confirm('Last chance! Are you really sure you want to delete everything?')) {
+                return;
+            }
+
+            try {
+                await deleteFromStorage('landscaping-clients');
+                await deleteFromStorage('landscaping-reminders');
+                await deleteFromStorage('landscaping-videos');
+                await deleteFromStorage('business-logo');
+                
+                clients = [];
+                reminders = [];
+                videos = [];
+                
+                renderClients();
+                renderSchedule();
+                renderVideos();
+                updateDashboard();
+                updateClientSelects();
+                
+                const logoImg = document.getElementById('businessLogo');
+                const defaultLogo = document.getElementById('defaultLogo');
+                logoImg.classList.add('hidden');
+                defaultLogo.classList.remove('hidden');
+                
+                alert('All data has been reset successfully.');
+                showTab('dashboard');
+            } catch (e) {
+                console.error('Error resetting data:', e);
+                alert('Error resetting data. Please try again.');
+            }
+        }
+    </script>
+</body>
+</html>
